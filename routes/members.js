@@ -12,11 +12,13 @@ const initialMembers = require('../fixtures/members.json');
 /* 作答區
 const members = ...;
 */
+const members = structuredClone(initialMembers)
 
 // 2. 下一個新增會員要使用的 id
 /* 作答區
 let nextId = ...;
 */
+let nextId = 5
 
 // 3. 兩個內部 helper 函式
 
@@ -26,6 +28,11 @@ let nextId = ...;
 /* 作答區
 function filterByQuery(list, query) { ... }
 */
+function filterByQuery(list, query) { 
+    const { level } = query
+
+    return level ? list.filter(e=> e.level === level) : list
+}
 
 // 函式二：validateBody(body)
 // - 驗證 body 有沒有 name、level 欄位，要擋 null / undefined / {}
@@ -35,6 +42,16 @@ function filterByQuery(list, query) { ... }
 /* 作答區
 function validateBody(body) { ... }
 */
+function validateBody(body) { 
+    const required = ['name', 'level']
+    const errorFields = required.filter(key =>
+        body[key] === null ||
+        body[key] === undefined ||
+        (typeof body[key] === 'object' && !Object.keys(body[key]).length)
+    )
+
+    return errorFields.length ? { valid: false, error: `缺 ${errorFields.join('或')}` } :  { valid: true }
+}
 
 const router = express.Router();
 // 此 router 掛在 app.js 的 '/members'，以下路由皆帶此前綴。舉例來說：
@@ -52,6 +69,11 @@ const router = express.Router();
 /* 作答區
 router.METHOD('PATH', (req, res) => { ... });
 */
+router.get('/',(req,res)=>{
+    const data = filterByQuery(members, req.query)
+
+    res.status(200).json(data)
+})
 
 // GET /:id
 // - 輸入：req.params.id（string，需使用 Number() 轉換）
@@ -60,6 +82,16 @@ router.METHOD('PATH', (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', (req, res) => { ... });
 */
+router.get('/:id',(req,res)=>{
+    const id = Number(req.params.id)
+    const member = members.find(e=> e.id === id)
+   
+    if(member){
+        res.status(200).json(member)
+    }else{
+        res.status(404).json({error:'會員不存在'})
+    }
+})
 
 // ───────────────────────────────────────────────────────────
 // TODO 任務三：POST /
@@ -73,6 +105,20 @@ router.METHOD('PATH', (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', (req, res) => { ... });
 */
+router.post('/',(req, res)=>{
+    const body = req.body
+    const result = validateBody(body)
+
+    if(result.valid){
+        const newMember = {id:nextId, ...body}
+        members.push(newMember)
+        nextId++
+        res.status(201).json(newMember)
+    }else{
+        res.status(400).json({ error:result.error })
+    }
+
+})
 
 // ───────────────────────────────────────────────────────────
 // TODO 任務四：PUT /:id 和 DELETE /:id
@@ -86,6 +132,20 @@ router.METHOD('PATH', (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', (req, res) => { ... });
 */
+router.put('/:id',(req, res)=>{
+    const id = Number(req.params.id)
+    const body = req.body
+    const memberIndex = members.findIndex(e=> e.id === id)
+
+    if(memberIndex !== -1){
+        members[memberIndex] = {...members[memberIndex], ...body}
+
+        res.status(200).json(members[memberIndex])
+    }else{
+        res.status(404).json({ error: '會員不存在' })
+    }
+
+})
 
 // DELETE /:id
 // - 輸入：req.params.id（string，需 Number() 轉換）
@@ -94,5 +154,18 @@ router.METHOD('PATH', (req, res) => { ... });
 /* 作答區
 router.METHOD('PATH', (req, res) => { ... });
 */
+router.delete('/:id',(req, res)=>{
+    const id = Number(req.params.id)
+    const memberIndex = members.findIndex(e=> e.id === id)
+
+    if(memberIndex !== -1){
+        members.splice(memberIndex, 1)
+
+        res.status(204).send()
+    }else{
+        res.status(404).json({ error: '會員不存在' })
+    }
+
+})
 
 module.exports = router;
